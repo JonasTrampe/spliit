@@ -5,15 +5,16 @@ import { Button } from '@/components/ui/button'
 import { SearchBar } from '@/components/ui/search-bar'
 import { getGroupExpenses } from '@/lib/api'
 import { cn, formatCurrency, formatExpenseDate } from '@/lib/utils'
-import { Expense, Participant } from '@prisma/client'
+import { Participant } from '@prisma/client'
 import dayjs, { type Dayjs } from 'dayjs'
 import { ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Fragment, useEffect, useState } from 'react'
 
+type CompleteExpense = Awaited<ReturnType<typeof getGroupExpenses>>[0]
 type Props = {
-  expenses: Awaited<ReturnType<typeof getGroupExpenses>>
+  expenses: CompleteExpense[]
   participants: Participant[]
   currency: string
   groupId: string
@@ -47,12 +48,13 @@ function getExpenseGroup(date: Dayjs, today: Dayjs) {
   }
 }
 
-function getGroupedExpensesByDate(
-  expenses: Awaited<ReturnType<typeof getGroupExpenses>>,
-) {
+function getGroupedExpensesByDate(expenses: CompleteExpense[]) {
   const today = dayjs()
   return expenses.reduce(
-    (result: { [key: string]: Expense[] }, expense: Expense) => {
+    (
+      result: { [key: string]: CompleteExpense[] },
+      expense: CompleteExpense,
+    ) => {
       const expenseGroup = getExpenseGroup(dayjs(expense.expenseDate), today)
       result[expenseGroup] = result[expenseGroup] ?? []
       result[expenseGroup].push(expense)
@@ -88,7 +90,18 @@ export function ExpenseList({
     }
   }, [groupId, participants])
 
-  const getParticipant = (id: string) => participants.find((p) => p.id === id)
+  const getParticipantList = (ps: { participantId: string }[]) => (
+    <>
+      {ps.map(({ participantId }, index) => (
+        <Fragment key={index}>
+          {index !== 0 && <>, </>}
+          <strong>
+            {participants.find((p) => p.id === participantId)?.name}
+          </strong>
+        </Fragment>
+      ))}
+    </>
+  )
   const router = useRouter()
 
   const groupedExpensesByDate = getGroupedExpensesByDate(expenses)
@@ -114,7 +127,7 @@ export function ExpenseList({
             >
               {expenseGroup}
             </div>
-            {groupExpenses.map((expense: any) => (
+            {groupExpenses.map((expense: CompleteExpense) => (
               <div
                 key={expense.id}
                 className={cn(
@@ -136,21 +149,8 @@ export function ExpenseList({
                     {expense.title}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Paid by{' '}
-                    <strong>{getParticipant(expense.paidById)?.name}</strong>{' '}
-                    for{' '}
-                    {expense.paidFor.map((paidFor: any, index: number) => (
-                      <Fragment key={index}>
-                        {index !== 0 && <>, </>}
-                        <strong>
-                          {
-                            participants.find(
-                              (p) => p.id === paidFor.participantId,
-                            )?.name
-                          }
-                        </strong>
-                      </Fragment>
-                    ))}
+                    Paid by {getParticipantList(expense.paidBy)} for{' '}
+                    {getParticipantList(expense.paidFor)}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     <ActiveUserBalance {...{ groupId, currency, expense }} />

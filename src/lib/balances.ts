@@ -19,11 +19,14 @@ export function getBalances(
   const balances: Balances = {}
 
   for (const expense of expenses) {
-    const paidBy = expense.paidById
+    const paidBys = expense.paidBy
     const paidFors = expense.paidFor
 
-    if (!balances[paidBy]) balances[paidBy] = { paid: 0, paidFor: 0, total: 0 }
-    balances[paidBy].paid += expense.amount
+    paidBys.forEach((paidBy) => {
+      if (!balances[paidBy.participantId])
+        balances[paidBy.participantId] = { paid: 0, paidFor: 0, total: 0 }
+      balances[paidBy.participantId].paid += paidBy.amount
+    })
 
     const totalPaidForShares = paidFors.reduce(
       (sum, paidFor) => sum + paidFor.shares,
